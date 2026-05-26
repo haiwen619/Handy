@@ -16,6 +16,12 @@ default = []
 # Tauri command boundary. Desktop host enables this; mobile host leaves it off
 # to keep handy-core free of UI binding-generation deps.
 specta = ["dep:specta"]
+# Opt-in: enable the Silero VAD (voice activity detection) module. This pulls
+# in `vad-rs` which transitively depends on `ort-sys` (ONNX Runtime).
+# `ort-sys` has no prebuilt binaries for Android — leaving this feature off
+# keeps handy-core cross-compilable to aarch64-linux-android out of the box.
+# Mobile hosts will either skip VAD or provide their own implementation.
+vad = ["dep:vad-rs"]
 
 [dependencies]
 anyhow      = { workspace = true }
@@ -30,7 +36,7 @@ ferrous-opencc = { workspace = true }
 once_cell      = { workspace = true }
 rubato         = { workspace = true }
 rustfft        = { workspace = true }
-vad-rs         = { workspace = true }
+vad-rs         = { workspace = true, optional = true }
 hound              = { workspace = true }
 rusqlite           = { workspace = true }
 rusqlite_migration = { workspace = true }
