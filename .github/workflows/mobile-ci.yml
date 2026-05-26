@@ -34,35 +34,33 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi
-      - uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: r26d
-          local-cache: true
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: android-cross
-      - name: Probe NDK clang wrapper (diagnostic)
-        env:
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      - name: Resolve runner-bundled NDK
         run: |
-          set -x
-          ls -la "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/" | head -40
-          file "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang" || true
-          head -10 "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang" || true
+          # Use the NDK preinstalled on ubuntu-latest (27.3+). The
+          # nttld/setup-ndk@v1 download of r26d ships incomplete clang
+          # wrappers that exec a non-existent `clang` symlink, breaking
+          # cc-rs. The bundled NDK has a complete toolchain.
+          NDK="${ANDROID_NDK_LATEST_HOME:-${ANDROID_NDK_ROOT}}"
+          if [ -z "$NDK" ] || [ ! -d "$NDK" ]; then
+            # Fallback: pick the highest-numbered SDK ndk dir
+            NDK=$(ls -d /usr/local/lib/android/sdk/ndk/*/ 2>/dev/null | sort -V | tail -1)
+            NDK="${NDK%/}"
+          fi
+          echo "Using NDK at: $NDK"
+          ls "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/" | grep -E '^(clang|aarch64-linux-android)' | head -10
+          {
+            echo "ANDROID_NDK_HOME=$NDK"
+            echo "ANDROID_NDK_ROOT=$NDK"
+          } >> "$GITHUB_ENV"
       - name: cargo ndk check (aarch64 + armv7)
         env:
-          # Override runner-bundled NDK (27.x) with the action-installed r26d
-          # so cargo-ndk doesn't warn about the mismatch and uses our pinned one.
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_PLATFORM: "24"
         run: |
-          # cargo-ndk 4.x parses `-p 24` after `-t ...` as a positional that
-          # collides with cargo's `--package`. Use `ANDROID_PLATFORM` instead,
-          # which cargo-ndk reads as the API level (=minSdkVersion).
-          export ANDROID_PLATFORM=24
           cargo ndk -t arm64-v8a -t armeabi-v7a -- check -p handy-core
           cargo ndk -t arm64-v8a -t armeabi-v7a -- check -p handy-platform
 
