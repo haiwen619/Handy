@@ -1,0 +1,59 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [main, mobile/**]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  android-cross-compile-spike:
+    name: Android Cross-Compile Spike
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          local-cache: true
+
+      - name: Configure cargo for NDK
+        run: |
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml <<EOF
+          [target.aarch64-linux-android]
+          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+          ar     = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+          EOF
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: android-spike
+          workspaces: src-tauri
+
+      - name: Cross-compile src-tauri to aarch64-linux-android (spike, expected to fail or warn)
+        working-directory: src-tauri
+        env:
+          CC_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
+          AR_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        # Only check whether linking against whisper.cpp / onnxruntime works.
+        # Failure is acceptable: this is a recon task. Log is uploaded regardless.
+        run: cargo check --target aarch64-linux-android --lib --no-default-features --features "" 2>&1 | tee spike.log || true
+
+      - name: Upload spike log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-spike-log
+          path: src-tauri/spike.log
