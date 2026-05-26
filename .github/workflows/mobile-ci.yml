@@ -49,7 +49,7 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         # Only check whether linking against whisper.cpp / onnxruntime works.
         # Failure is acceptable: this is a recon task. Log is uploaded regardless.
-        run: cargo check --target aarch64-linux-android --lib --no-default-features --features "" 2>&1 | tee spike.log || true
+        run: cargo check --target aarch64-linux-android --lib --no-default-features 2>&1 | tee spike.log || true
 
       - name: Upload spike log
         if: always()
@@ -57,3 +57,4 @@ jobs:
         with:
           name: android-spike-log
           path: src-tauri/spike.log
+          if-no-files-found: warn
