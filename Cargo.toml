@@ -34,7 +34,7 @@ ferrous-opencc    = "0.2.3"
 
 # 桌面专属 (不被 handy-core 引用),但放 workspace 统一版本
 tauri             = { version = "2.10.2", default-features = false }
-specta            = "=2.0.0-rc.22"
+specta            = { version = "=2.0.0-rc.22", features = ["derive"] }
 tauri-specta      = { version = "=2.0.0-rc.21", default-features = false }
 
 [patch.crates-io]
