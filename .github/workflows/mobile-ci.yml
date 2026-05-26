@@ -54,10 +54,17 @@ jobs:
           head -10 "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang" || true
       - name: cargo ndk check (aarch64 + armv7)
         env:
+          # Override runner-bundled NDK (27.x) with the action-installed r26d
+          # so cargo-ndk doesn't warn about the mismatch and uses our pinned one.
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          cargo ndk -t arm64-v8a -t armeabi-v7a -p 24 -- check -p handy-core
-          cargo ndk -t arm64-v8a -t armeabi-v7a -p 24 -- check -p handy-platform
+          # cargo-ndk 4.x parses `-p 24` after `-t ...` as a positional that
+          # collides with cargo's `--package`. Use `ANDROID_PLATFORM` instead,
+          # which cargo-ndk reads as the API level (=minSdkVersion).
+          export ANDROID_PLATFORM=24
+          cargo ndk -t arm64-v8a -t armeabi-v7a -- check -p handy-core
+          cargo ndk -t arm64-v8a -t armeabi-v7a -- check -p handy-platform
 
   desktop-no-regression:
     name: Desktop build still works
