@@ -77,8 +77,8 @@ Add-ToPathIfExists $ndkBin
 Add-ToPathIfExists (Join-Path $androidHome 'platform-tools')
 
 # 7) Ensure rustup targets installed
+$installed = & rustup target list --installed 2>$null
 foreach ($t in @('aarch64-linux-android', 'armv7-linux-androideabi', 'x86_64-linux-android', 'i686-linux-android')) {
-  $installed = & rustup target list --installed 2>$null
   if ($installed -notcontains $t) {
     Write-Host "rustup target add $t"
     & rustup target add $t
