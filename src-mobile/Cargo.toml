@@ -23,6 +23,9 @@ handy-platform = { path = "../crates/handy-platform" }
 # transcribe-rs deferred to Task 5/6 (avoids whisper-rs-sys C++ build on host
 # scaffolding step). Re-add when AppState.engine becomes a real WhisperModel.
 # transcribe-rs  = { workspace = true }
+# TODO Task 9: gate `wry` behind cfg(not(mobile)) once `cargo tauri android init`
+# wires in the Android runtime. `wry` is desktop-only; needed here only so host
+# `cargo check` resolves `AppHandle<R = Wry>` defaults during the scaffold phase.
 tauri = { workspace = true, features = ["wry"] }
 tauri-plugin-clipboard-manager = "2.3.2"
 tauri-plugin-fs                = "2.4.4"
