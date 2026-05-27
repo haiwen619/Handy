@@ -1,0 +1,43 @@
+[package]
+name        = "handy-mobile"
+version     = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Handy mobile (Android) Tauri application"
+
+[lib]
+name = "handy_mobile_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "handy-mobile"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+handy-core     = { path = "../crates/handy-core" }
+handy-platform = { path = "../crates/handy-platform" }
+# transcribe-rs deferred to Task 5/6 (avoids whisper-rs-sys C++ build on host
+# scaffolding step). Re-add when AppState.engine becomes a real WhisperModel.
+# transcribe-rs  = { workspace = true }
+tauri = { workspace = true, features = ["wry"] }
+tauri-plugin-clipboard-manager = "2.3.2"
+tauri-plugin-fs                = "2.4.4"
+tauri-plugin-log               = "2.7.1"
+serde      = { workspace = true }
+serde_json = { workspace = true }
+tokio      = { workspace = true }
+anyhow     = { workspace = true }
+log        = { workspace = true }
+once_cell  = { workspace = true }
+async-trait = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
+futures-util = "0.3"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni         = "0.21"
+ndk-context = "0.1"
+oboe        = { version = "0.6", features = ["java-interface"] }
