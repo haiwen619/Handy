@@ -151,21 +151,21 @@ CI (Task 13) will encode these env vars in the workflow; Windows-host devs need 
 
 | Task | 内容 | 状态 |
 |------|------|------|
-| 1 | enter-android-env.ps1 | ⏳ |
-| 2 | src-mobile/ scaffold | ⏳ |
-| 3 | src-mobile-ui/ scaffold | ⏳ |
-| 4 | host trait wiring verify | ⏳ |
-| 5 | download.rs + model commands | ⏳ |
-| 6 | transcription commands | ⏳ |
-| 7 | Android cross-compile spike | ⏳ |
-| 8 | Android platform impls | ⏳ |
-| 9 | cargo tauri android init | ⏳ |
-| 10 | Manifest perms | ⏳ |
-| 11 | UI: download gate | ⏳ |
-| 12 | UI: record + transcript + copy | ⏳ |
-| 13 | CI: debug APK job | ⏳ |
-| 14 | docs/mobile/android-build.md | ⏳ |
-| 15 | final validation | ⏳ |
+| 1 | enter-android-env.ps1 | ✅ |
+| 2 | src-mobile/ scaffold | ✅ |
+| 3 | src-mobile-ui/ scaffold | ✅ |
+| 4 | host trait wiring verify | ✅ |
+| 5 | download.rs + model commands | ✅ |
+| 6 | transcription commands | ✅ |
+| 7 | Android cross-compile spike | ✅ |
+| 8 | Android platform impls | ✅ |
+| 9 | cargo tauri android init | ✅ |
+| 10 | Manifest perms | ✅ |
+| 11 | UI: download gate | ✅ |
+| 12 | UI: record + transcript + copy | ✅ |
+| 13 | CI: debug APK job | ✅ |
+| 14 | docs/mobile/android-build.md | ✅ |
+| 15 | final validation | 🟡 部分 (本地 host check / core tests ✅;CI 绿 + 真机安装待 push 后验证) |
 
 实施过程中把 ⏳ 改成 ✅,完成后 commit。
 
