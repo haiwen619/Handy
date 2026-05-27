@@ -17,6 +17,12 @@
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "check:translations": "bun scripts/check-translations.ts",
+    "mobile:install": "cd src-mobile-ui && bun install",
+    "mobile:dev": "cd src-mobile-ui && bun run dev",
+    "mobile:build": "cd src-mobile-ui && bun run build",
+    "tauri:android:init": "cd src-mobile && cargo tauri android init",
+    "tauri:android:dev": "cd src-mobile && cargo tauri android dev",
+    "tauri:android:build": "cd src-mobile && cargo tauri android build --apk --debug",
     "postinstall": "bun scripts/check-nix-deps.ts"
   },
   "dependencies": {
