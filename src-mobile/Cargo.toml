@@ -20,9 +20,16 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 handy-core     = { path = "../crates/handy-core" }
 handy-platform = { path = "../crates/handy-platform" }
-# transcribe-rs deferred to Task 5/6 (avoids whisper-rs-sys C++ build on host
-# scaffolding step). Re-add when AppState.engine becomes a real WhisperModel.
-# transcribe-rs  = { workspace = true }
+# transcribe-rs: override workspace features. The workspace default enables
+# `onnx`, which pulls `ort-sys` (ONNX Runtime) — ort-sys has no prebuilt binaries
+# for aarch64-linux-android and refuses to download, breaking the Android build.
+# Mobile phase 2a ships Whisper-only, so we drop `onnx` here. Engines that need
+# ONNX (Parakeet/Moonshine/SenseVoice/Canary/GigaAM) are desktop-only for now.
+#
+# Additionally: whisper-rs-sys compiles whisper.cpp via cmake. For Android NDK
+# builds set `WHISPER_CMAKE_ARGS="-DGGML_OPENMP=OFF"` (NDK lacks OpenMP).
+# See docs/mobile/README.md "Android cross-compile notes".
+transcribe-rs  = { path = "../src-tauri/vendor/transcribe-rs", default-features = false, features = ["whisper"] }
 # TODO Task 9: gate `wry` behind cfg(not(mobile)) once `cargo tauri android init`
 # wires in the Android runtime. `wry` is desktop-only; needed here only so host
 # `cargo check` resolves `AppHandle<R = Wry>` defaults during the scaffold phase.

@@ -95,6 +95,52 @@
    - 分支 `mobile/phase-1-workspace`: 13 个 commit (`63912ff` 起到 `3d3b913`)
    网络恢复后批量 push 并 `gh pr create` 开 PR 合并到 main。
 
+## Android cross-compile notes (Task 7 spike, 2026-05-27)
+
+**Status:** SUCCESS. `cargo ndk -t arm64-v8a --platform 24 -- check -p handy-mobile` finishes (~22s clean build, 2s cached) for `aarch64-linux-android` with `transcribe-rs` (whisper.cpp via cmake) fully linked.
+
+### Required environment
+
+After `. .\scripts\enter-android-env.ps1` (already sets ANDROID_HOME, ANDROID_NDK_HOME, NDK toolchain on PATH, rustup targets), additionally set:
+
+```powershell
+# Use the Android SDK's cmake which bundles ninja (install via:
+#   sdkmanager "cmake;3.31.6"
+# from ANDROID_HOME\cmdline-tools\<ver>\bin\sdkmanager.bat)
+$env:PATH = "$env:ANDROID_HOME\cmake\3.31.6\bin;$env:PATH"
+$env:CMAKE_GENERATOR = "Ninja"
+$env:CMAKE_TOOLCHAIN_FILE_aarch64_linux_android = "F:\@Haiwen\MSZN\Handy\scripts\android\android-arm64.toolchain.cmake"
+```
+
+The `scripts\android\android-arm64.toolchain.cmake` wrapper is **required**: it pins `ANDROID_ABI=arm64-v8a` + `ANDROID_PLATFORM=android-24` before delegating to the NDK's `android.toolchain.cmake`. Without the wrapper, the NDK toolchain defaults to armv7-a and clashes with the `--target=aarch64-linux-android` flag that `cargo-ndk` injects via `CMAKE_C_FLAGS`, producing `clang: error: unsupported argument 'armv7-a' to option '-march='`.
+
+### Required feature/dep changes
+
+1. **`src-mobile/Cargo.toml`** uses `transcribe-rs` with `default-features = false, features = ["whisper"]` (overrides the workspace default which enables `onnx`). `ort-sys` (ONNX Runtime) has no prebuilt binaries for `aarch64-linux-android` and refuses to download — the spike's first hard error. Mobile phase 2a is Whisper-only; ONNX engines (Parakeet/Moonshine/SenseVoice/Canary/GigaAM) stay desktop-only for now.
+
+2. **`src-tauri/vendor/transcribe-rs/Cargo.toml`** patched to declare `whisper-rs` for `cfg(target_os = "android")` (no GPU features). Upstream only declares it for linux/macos/windows. Without this, `whisper_cpp/mod.rs` fails with `unresolved import whisper_rs` on Android.
+
+### Whisper model file location
+
+whisper-rs / whisper.cpp expects a single ggml `.bin` file. The mobile download flow (Task 5) already targets HuggingFace `ggml-tiny-q5_1.bin`; runtime path will be `<AppStorage::models_dir()>/<engine>/<file>.bin`. Wire-up happens in Task 6.
+
+### Scope: arm64-only for phase 2a
+
+armv7-linux-androideabi / x86_64-linux-android / i686-linux-android targets are deferred — phase 2a ships an arm64-only debug APK per plan (Task 11). The toolchain wrapper would need per-ABI variants when we expand.
+
+### Reproducer command
+
+```powershell
+# from repo root
+. .\scripts\enter-android-env.ps1
+$env:PATH = "$env:ANDROID_HOME\cmake\3.31.6\bin;$env:PATH"
+$env:CMAKE_GENERATOR = "Ninja"
+$env:CMAKE_TOOLCHAIN_FILE_aarch64_linux_android = "$PWD\scripts\android\android-arm64.toolchain.cmake"
+cargo ndk -t arm64-v8a --platform 24 -- check -p handy-mobile
+```
+
+CI (Task 13) will encode these env vars in the workflow; Windows-host devs need them locally.
+
 ## 下一步 (阶段 2)
 
 待 PR 合并 + GHA 全绿后启动:

@@ -238,3 +238,11 @@ optional = true
 version = "0.13.2"
 features = []
 optional = true
+
+# Android: NDK lacks OpenMP and prebuilt GPU runtimes; build whisper.cpp CPU-only.
+# Set WHISPER_CMAKE_ARGS="-DGGML_OPENMP=OFF" in the build env. See
+# docs/mobile/README.md "Android cross-compile notes (Task 7 spike)".
+[target.'cfg(target_os = "android")'.dependencies.whisper-rs]
+version = "0.13.2"
+features = []
+optional = true
