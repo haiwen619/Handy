@@ -141,14 +141,37 @@ cargo ndk -t arm64-v8a --platform 24 -- check -p handy-mobile
 
 CI (Task 13) will encode these env vars in the workflow; Windows-host devs need them locally.
 
-## 下一步 (阶段 2)
+## 下一步
 
-待 PR 合并 + GHA 全绿后启动:
+### Phase 2a — Android debug APK (本阶段)
 
-1. `cargo tauri android init` 在 `src-mobile/` 创建移动端 Tauri 工程
-2. 编写 [docs/mobile/android-build.md](./android-build.md) (Windows + Android Studio 构建指引)
-3. 实现移动端 UI (`src-mobile-ui/`):Record / History / Models / Settings 四个页
-4. 实现 Android 前台录音服务 (`HandyRecordingService.kt` + Rust JNI 桥)
-5. 实现 Android `AudioCapture` (基于 Oboe 或 AAudio)
+设计: [docs/superpowers/specs/2026-05-27-handy-mobile-phase-2a-design.md](../superpowers/specs/2026-05-27-handy-mobile-phase-2a-design.md)
+计划: [docs/superpowers/plans/2026-05-27-handy-mobile-phase-2a.md](../superpowers/plans/2026-05-27-handy-mobile-phase-2a.md)
+构建文档: [docs/mobile/android-build.md](./android-build.md)
 
-阶段 2 详细计划将单独成文。
+| Task | 内容 | 状态 |
+|------|------|------|
+| 1 | enter-android-env.ps1 | ⏳ |
+| 2 | src-mobile/ scaffold | ⏳ |
+| 3 | src-mobile-ui/ scaffold | ⏳ |
+| 4 | host trait wiring verify | ⏳ |
+| 5 | download.rs + model commands | ⏳ |
+| 6 | transcription commands | ⏳ |
+| 7 | Android cross-compile spike | ⏳ |
+| 8 | Android platform impls | ⏳ |
+| 9 | cargo tauri android init | ⏳ |
+| 10 | Manifest perms | ⏳ |
+| 11 | UI: download gate | ⏳ |
+| 12 | UI: record + transcript + copy | ⏳ |
+| 13 | CI: debug APK job | ⏳ |
+| 14 | docs/mobile/android-build.md | ⏳ |
+| 15 | final validation | ⏳ |
+
+实施过程中把 ⏳ 改成 ✅,完成后 commit。
+
+### 后续 phase
+
+- **Phase 2b** — History/Models/Settings UI + sqlite + 多模型支持
+- **Phase 2c** — 前台服务 + VAD + 锁屏/后台录音 + 流式
+- **Phase 3** — IME 输入法
+- **Phase 4** — 签名 + Release + 发布
