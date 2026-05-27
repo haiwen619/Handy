@@ -1,7 +1,11 @@
+import ModelDownloadGate from "./components/ModelDownloadGate";
+
 export default function App() {
   return (
-    <main className="flex h-full items-center justify-center">
-      <h1 className="text-2xl font-semibold">Handy Mobile</h1>
-    </main>
+    <ModelDownloadGate>
+      <main className="flex h-full items-center justify-center">
+        <p>Ready to record</p>
+      </main>
+    </ModelDownloadGate>
   );
 }
