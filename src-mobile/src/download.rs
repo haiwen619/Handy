@@ -7,7 +7,7 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
 /// Streams `url` to `dest`, emitting `event_name` with `{ pct, downloaded, total }`
-/// every ~1% or 1MB, whichever comes first.
+/// every time the integer percentage advances.
 pub async fn download_with_progress<S: EventSink + ?Sized>(
     url: &str,
     dest: &Path,
@@ -41,7 +41,7 @@ pub async fn download_with_progress<S: EventSink + ?Sized>(
             last_emit_pct = pct;
         }
     }
-    file.flush().await.ok();
+    file.flush().await.context("flush")?;
     drop(file);
     fs::rename(&tmp, dest).await.context("rename to dest")?;
     sink.emit_json(event_name, json!({
