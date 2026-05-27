@@ -6,7 +6,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use handy_platform::{AppStorage, AudioCapture, AudioConfig, AudioFrame, OutputMode, TextOutput};
 use oboe::{
-    AudioInputCallback, AudioInputStreamSafe, AudioStreamAsync, AudioStreamBuilder,
+    AudioInputCallback, AudioInputStreamSafe, AudioStream, AudioStreamAsync, AudioStreamBuilder,
     DataCallbackResult, Input, InputPreset, Mono, PerformanceMode,
     SampleRateConversionQuality, SharingMode,
 };
