@@ -96,10 +96,24 @@ on every push.
 ## 4. `tauri android dev` (live-reload, advanced)
 
 ```powershell
-# Sourcing enter-android-env.ps1 must export ANDROID_HOME / NDK_HOME / JAVA_HOME
-. .\enter-android-env.ps1
-cargo tauri android dev --target aarch64 --open
+# From repo root. Sourcing enter-android-env.ps1 exports everything Gradle,
+# cargo-ndk, cmake, and Tauri's mobile devserver need (ANDROID_HOME,
+# ANDROID_NDK_HOME, JAVA_HOME=jdk-17, CMAKE_GENERATOR=Ninja,
+# CMAKE_TOOLCHAIN_FILE_aarch64_linux_android, TAURI_DEV_HOST=localhost, ...).
+. .\scripts\enter-android-env.ps1
+adb reverse tcp:1421 tcp:1421
+cd src-mobile
+cargo tauri android dev
 ```
+
+The first run installs a debug APK; subsequent saves to the React UI reload
+on the phone via Vite HMR over `adb reverse`. Rust changes still require a
+rebuild + reinstall.
+
+`MainActivity.kt` requests `RECORD_AUDIO` at startup — the system dialog
+appears on first launch. If you previously denied it, grant manually via
+Settings → Apps → Handy → Permissions → Microphone (or
+`adb shell pm grant com.handy.mobile android.permission.RECORD_AUDIO`).
 
 This deploys + connects the Tauri devserver over USB and gives you React
 HMR on the phone. The Rust side still has to be rebuilt + reinstalled
@@ -107,6 +121,7 @@ when you change Rust code (no Rust HMR), but the frontend loop is
 seconds, not minutes.
 
 Caveats on Windows:
+
 - `enter-android-env.ps1` must be sourced first (sets `ANDROID_HOME`,
   `JAVA_HOME=jdk-17`, `TEMP/TMP=D:\handy-temp` to dodge the full C: drive
   and the MSVC GBK code-page issue).

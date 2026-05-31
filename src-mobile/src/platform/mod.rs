@@ -1,7 +1,3 @@
-use anyhow::Result;
-use handy_platform::{AppStorage, AudioCapture, TextOutput};
-use tauri::AppHandle;
-
 #[cfg(target_os = "android")]
 mod android;
 #[cfg(target_os = "android")]
