@@ -32,7 +32,7 @@ pub fn run() {
                 text_output,
                 sink,
                 engine: Arc::new(Mutex::new(None)),
-                recording_rx: Arc::new(Mutex::new(None)),
+                recording: Arc::new(Mutex::new(None)),
             };
             app.manage(state);
             Ok(())

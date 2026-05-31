@@ -52,7 +52,12 @@ impl AudioCapture for AndroidAudioCapture {
         if self.stream.is_some() {
             anyhow::bail!("AndroidAudioCapture already running");
         }
-        let (tx, rx) = mpsc::channel::<AudioFrame>(64);
+        // Capacity sized for ~5s of audio at the worst-case callback rate.
+        // Drainer should keep up easily; this is a safety cushion in case the
+        // tokio runtime is briefly starved (e.g. during whisper model load).
+        // Audio thread still uses try_send — dropping is preferable to blocking
+        // the realtime audio thread.
+        let (tx, rx) = mpsc::channel::<AudioFrame>(1024);
 
         let stream = AudioStreamBuilder::default()
             .set_performance_mode(PerformanceMode::LowLatency)
