@@ -1,0 +1,50 @@
+[package]
+name        = "handy-core"
+version     = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Platform-agnostic core for Handy: transcription, VAD, model, history, settings."
+
+[lib]
+name = "handy_core"
+path = "src/lib.rs"
+
+[features]
+default = []
+# Opt-in: derive `specta::Type` on public data types so they can cross the
+# Tauri command boundary. Desktop host enables this; mobile host leaves it off
+# to keep handy-core free of UI binding-generation deps.
+specta = ["dep:specta"]
+# Opt-in: enable the Silero VAD (voice activity detection) module. This pulls
+# in `vad-rs` which transitively depends on `ort-sys` (ONNX Runtime).
+# `ort-sys` has no prebuilt binaries for Android — leaving this feature off
+# keeps handy-core cross-compilable to aarch64-linux-android out of the box.
+# Mobile hosts will either skip VAD or provide their own implementation.
+vad = ["dep:vad-rs"]
+
+[dependencies]
+anyhow      = { workspace = true }
+log         = { workspace = true }
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+thiserror   = { workspace = true }
+regex          = { workspace = true }
+strsim         = { workspace = true }
+natural        = { workspace = true }
+ferrous-opencc = { workspace = true }
+once_cell      = { workspace = true }
+rubato         = { workspace = true }
+rustfft        = { workspace = true }
+vad-rs         = { workspace = true, optional = true }
+hound              = { workspace = true }
+rusqlite           = { workspace = true }
+rusqlite_migration = { workspace = true }
+chrono             = { workspace = true }
+specta             = { workspace = true, optional = true }
+
+[dependencies.handy-platform]
+path = "../handy-platform"
+
+[dev-dependencies]
+tempfile = "3"

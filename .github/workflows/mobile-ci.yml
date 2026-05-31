@@ -1,0 +1,168 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [main, mobile/**]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  core-tests:
+    name: handy-core unit tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: handy-core-${{ matrix.os }}
+      - name: cargo test handy-core
+        run: cargo test -p handy-core --lib --all-features
+      - name: cargo test handy-platform
+        run: cargo test -p handy-platform --lib --all-features
+
+  android-cross-compile:
+    name: Cross-compile handy-core to Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: android-cross
+      - name: Resolve runner-bundled NDK
+        run: |
+          # Use the NDK preinstalled on ubuntu-latest (27.3+). The
+          # nttld/setup-ndk@v1 download of r26d ships incomplete clang
+          # wrappers that exec a non-existent `clang` symlink, breaking
+          # cc-rs. The bundled NDK has a complete toolchain.
+          NDK="${ANDROID_NDK_LATEST_HOME:-${ANDROID_NDK_ROOT}}"
+          if [ -z "$NDK" ] || [ ! -d "$NDK" ]; then
+            # Fallback: pick the highest-numbered SDK ndk dir
+            NDK=$(ls -d /usr/local/lib/android/sdk/ndk/*/ 2>/dev/null | sort -V | tail -1)
+            NDK="${NDK%/}"
+          fi
+          echo "Using NDK at: $NDK"
+          ls "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/" | grep -E '^(clang|aarch64-linux-android)' | head -10
+          {
+            echo "ANDROID_NDK_HOME=$NDK"
+            echo "ANDROID_NDK_ROOT=$NDK"
+          } >> "$GITHUB_ENV"
+      - name: cargo ndk check (aarch64 + armv7)
+        env:
+          ANDROID_PLATFORM: "24"
+        run: |
+          cargo ndk -t arm64-v8a -t armeabi-v7a -- check -p handy-core
+          cargo ndk -t arm64-v8a -t armeabi-v7a -- check -p handy-platform
+
+  android-debug-apk:
+    name: Build debug APK
+    needs: android-cross-compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: oven-sh/setup-bun@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: android-apk
+      - name: Install Tauri CLI & cargo-ndk
+        run: |
+          cargo install tauri-cli --version "^2" --locked
+          cargo install cargo-ndk --locked
+      - name: Install Ninja (for whisper.cpp cmake build)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+      - name: Resolve runner-bundled NDK
+        run: |
+          NDK="${ANDROID_NDK_LATEST_HOME:-${ANDROID_NDK_ROOT}}"
+          if [ -z "$NDK" ] || [ ! -d "$NDK" ]; then
+            NDK=$(ls -d /usr/local/lib/android/sdk/ndk/*/ 2>/dev/null | sort -V | tail -1)
+            NDK="${NDK%/}"
+          fi
+          echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$NDK" >> "$GITHUB_ENV"
+          echo "NDK_HOME=$NDK"         >> "$GITHUB_ENV"
+      - name: Install frontend deps
+        working-directory: src-mobile-ui
+        run: bun install --frozen-lockfile || bun install
+      - name: Build debug APK (arm64 only)
+        working-directory: src-mobile
+        # Phase 2a is arm64-only — armv7/x86/x86_64 targets are deferred (see
+        # docs/mobile/README.md "Scope: arm64-only for phase 2a"). Without
+        # --target aarch64, tauri-cli builds all 4 ABIs and the armv7 path
+        # fails because:
+        #   1. our cmake toolchain wrapper (android-arm64.toolchain.cmake)
+        #      only pins ANDROID_ABI=arm64-v8a, so armv7 has no wrapper;
+        #   2. bindgen can't locate libc headers for armv7
+        #      (bits/libc-header-start.h: file not found).
+        # The cmake toolchain wrapper + GGML_OPENMP=OFF are required for
+        # transcribe-rs / whisper-rs-sys to cross-compile whisper.cpp.
+        # See docs/mobile/README.md "Android cross-compile notes (Task 7 spike)".
+        env:
+          ANDROID_PLATFORM: "24"
+          CMAKE_GENERATOR: Ninja
+          CMAKE_TOOLCHAIN_FILE_aarch64_linux_android: ${{ github.workspace }}/scripts/android/android-arm64.toolchain.cmake
+          WHISPER_CMAKE_ARGS: "-DGGML_OPENMP=OFF"
+        run: cargo tauri android build --apk --debug --target aarch64
+      - name: Locate APK
+        id: locate
+        run: |
+          APK=$(find src-mobile/gen/android/app/build/outputs/apk -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "No APK produced; build outputs tree:"
+            find src-mobile/gen/android/app/build/outputs || true
+            exit 1
+          fi
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: handy-mobile-debug-apk
+          path: ${{ steps.locate.outputs.apk }}
+          if-no-files-found: error
+
+  desktop-no-regression:
+    name: Desktop build still works
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: desktop-${{ matrix.os }}
+      - name: Install Linux deps
+        if: runner.os == 'Linux'
+        # Mirrors .github/workflows/build.yml apt deps for ubuntu-22.04: handy
+        # links rdev/enigo (libx*-dev) and transcribe-rs/whisper-rs-sys
+        # (libopenblas-dev). Without these, `cargo check` fails at link time
+        # with exit 101.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libgtk-layer-shell-dev \
+            libasound2-dev libopenblas-dev \
+            libx11-dev libxtst-dev libxrandr-dev
+      - name: cargo check src-tauri
+        working-directory: src-tauri
+        run: cargo check --lib

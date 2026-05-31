@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Capabilities for the Handy mobile app (Phase 2a: Android arm64 debug APK)","local":true,"windows":["main"],"permissions":["core:default","core:event:default","clipboard-manager:default","clipboard-manager:allow-write-text","clipboard-manager:allow-read-text","fs:default","log:default"]}}

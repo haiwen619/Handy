@@ -1,0 +1,4 @@
+# TypeScript composite build artifacts emitted by `tsc -b`
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js

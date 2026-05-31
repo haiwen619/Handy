@@ -162,6 +162,32 @@ pub enum RecordingRetentionPeriod {
     Months3,
 }
 
+impl From<RecordingRetentionPeriod> for handy_core::history::RecordingRetentionPeriod {
+    fn from(d: RecordingRetentionPeriod) -> Self {
+        use handy_core::history::RecordingRetentionPeriod as Core;
+        match d {
+            RecordingRetentionPeriod::Never => Core::Never,
+            RecordingRetentionPeriod::PreserveLimit => Core::PreserveLimit,
+            RecordingRetentionPeriod::Days3 => Core::Days3,
+            RecordingRetentionPeriod::Weeks2 => Core::Weeks2,
+            RecordingRetentionPeriod::Months3 => Core::Months3,
+        }
+    }
+}
+
+impl From<handy_core::history::RecordingRetentionPeriod> for RecordingRetentionPeriod {
+    fn from(c: handy_core::history::RecordingRetentionPeriod) -> Self {
+        use handy_core::history::RecordingRetentionPeriod as Core;
+        match c {
+            Core::Never => RecordingRetentionPeriod::Never,
+            Core::PreserveLimit => RecordingRetentionPeriod::PreserveLimit,
+            Core::Days3 => RecordingRetentionPeriod::Days3,
+            Core::Weeks2 => RecordingRetentionPeriod::Weeks2,
+            Core::Months3 => RecordingRetentionPeriod::Months3,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum KeyboardImplementation {
@@ -286,7 +312,20 @@ pub enum WhisperAcceleratorSetting {
 
 impl Default for WhisperAcceleratorSetting {
     fn default() -> Self {
-        WhisperAcceleratorSetting::Auto
+        // On Windows the GPU path goes through Vulkan, which crashes hard on
+        // machines with stale/missing GPU drivers (common on Win10 LTSC, VMs,
+        // older integrated GPUs). The C++ FFI panic cannot be caught from
+        // Rust, so we ship a CPU-first default and let users opt into GPU
+        // from Settings once they've verified the app launches.
+        // Reason: documented in the Windows crash-on-launch RCA, item #6.
+        #[cfg(target_os = "windows")]
+        {
+            WhisperAcceleratorSetting::Cpu
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            WhisperAcceleratorSetting::Auto
+        }
     }
 }
 
@@ -303,7 +342,17 @@ pub enum OrtAcceleratorSetting {
 
 impl Default for OrtAcceleratorSetting {
     fn default() -> Self {
-        OrtAcceleratorSetting::Auto
+        // Same rationale as WhisperAcceleratorSetting: DirectML/CUDA paths can
+        // crash before Rust regains control on machines with bad drivers.
+        // CPU-first on Windows; users can switch in Settings.
+        #[cfg(target_os = "windows")]
+        {
+            OrtAcceleratorSetting::Cpu
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            OrtAcceleratorSetting::Auto
+        }
     }
 }
 

@@ -37,48 +37,6 @@ function Add-ToPathIfExists {
   }
 }
 
-function Test-VulkanSdkRoot {
-  param([string]$Root)
-  if ([string]::IsNullOrWhiteSpace($Root)) { return $false }
-  $header = Join-Path $Root 'Include\vulkan\vulkan.h'
-  $lib = Join-Path $Root 'Lib\vulkan-1.lib'
-  $glslc = Join-Path $Root 'Bin\glslc.exe'
-  return (Test-Path $header) -and (Test-Path $lib) -and (Test-Path $glslc)
-}
-
-function Resolve-VulkanSdkRoot {
-  param([string]$Current)
-
-  if (Test-VulkanSdkRoot $Current) {
-    return $Current
-  }
-
-  $candidates = @()
-  $roots = @('C:\VulkanSDK', 'D:\VulkanSDK', 'E:\VulkanSDK', 'F:\VulkanSDK')
-  foreach ($root in $roots) {
-    if (Test-Path $root) {
-      $dirs = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue
-      if ($dirs) {
-        $candidates += $dirs.FullName
-      }
-    }
-  }
-
-  if (-not $candidates -or $candidates.Count -eq 0) {
-    return $null
-  }
-
-  # Prefer the lexicographically latest version folder name.
-  $ordered = $candidates | Sort-Object -Descending
-  foreach ($candidate in $ordered) {
-    if (Test-VulkanSdkRoot $candidate) {
-      return $candidate
-    }
-  }
-
-  return $null
-}
-
 function Get-ShortPath {
   param(
     [Parameter(Mandatory = $true)]
@@ -126,8 +84,30 @@ Add-ToPathIfExists $winDir
 Add-ToPathIfExists (Join-Path $winDir 'System32')
 
 # 1.1) Use a short Cargo target directory on Windows to avoid deep-path cmake crashes.
+#
+# IMPORTANT: do NOT put this under $env:TEMP. MSBuild's MSB8029 warning
+# ("中间目录或输出目录无法驻留在临时目录下") is actually fatal in some
+# whisper-rs-sys build invocations — MSBuild treats temp-resident inputs as
+# clean-able and wipes out generated whisper.cpp/CMakeLists.txt mid-build,
+# producing "The source directory ... does not appear to contain CMakeLists.txt".
+# Use a stable short path on a real drive instead.
 if ([string]::IsNullOrWhiteSpace($env:CARGO_TARGET_DIR)) {
-  $env:CARGO_TARGET_DIR = Join-Path $env:TEMP 'handy-cargo-target'
+  $candidates = @('C:\handy-build', 'D:\handy-build', 'F:\handy-build')
+  foreach ($c in $candidates) {
+    $root = Split-Path $c -Qualifier
+    if (Test-Path $root) {
+      if (-not (Test-Path $c)) {
+        try { New-Item -ItemType Directory -Path $c -Force | Out-Null } catch { continue }
+      }
+      $env:CARGO_TARGET_DIR = $c
+      break
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($env:CARGO_TARGET_DIR)) {
+    # Fallback: keep prior behaviour if no fixed drive root is writable.
+    $env:CARGO_TARGET_DIR = Join-Path $env:TEMP 'handy-cargo-target'
+    Write-Warning "Could not allocate a non-temp CARGO_TARGET_DIR; falling back to $env:CARGO_TARGET_DIR. whisper-rs-sys MSBuild may fail."
+  }
 }
 
 # 2) Ensure CMake is callable (whisper-rs-sys build script shells out to `cmake`)
@@ -148,15 +128,6 @@ $cmakeCmd = Get-Command cmake -ErrorAction SilentlyContinue | Select-Object -Exp
 if ($cmakeCmd) {
   # Let cmake-rs use this exact executable instead of a stale PATH entry.
   $env:CMAKE = $cmakeCmd
-}
-
-# 2.1) Validate/resolve Vulkan SDK (GGML_VULKAN requires headers, vulkan-1.lib and glslc)
-$resolvedVulkan = Resolve-VulkanSdkRoot $env:VULKAN_SDK
-if ($resolvedVulkan) {
-  $env:VULKAN_SDK = $resolvedVulkan
-  Add-ToPathIfExists (Join-Path $resolvedVulkan 'Bin')
-} else {
-  Write-Warning "VULKAN_SDK is not configured to a valid SDK root (missing Include/Lib/Bin\\glslc.exe). Please install LunarG Vulkan SDK."
 }
 
 # 3) Help bindgen find standard headers reliably
@@ -221,7 +192,6 @@ if ($clPath -match '\\2019\\') {
 }
 
 Write-Host "Loaded build env:" -ForegroundColor Cyan
-Write-Host "  VULKAN_SDK=$env:VULKAN_SDK"
 Write-Host "  LIBCLANG_PATH=$env:LIBCLANG_PATH"
 Write-Host "  CLANG_PATH=$env:CLANG_PATH"
 Write-Host "  BINDGEN_EXTRA_CLANG_ARGS=$env:BINDGEN_EXTRA_CLANG_ARGS"

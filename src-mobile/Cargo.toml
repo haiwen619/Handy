@@ -1,0 +1,53 @@
+[package]
+name        = "handy-mobile"
+version     = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Handy mobile (Android) Tauri application"
+
+[lib]
+name = "handy_mobile_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "handy-mobile"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+handy-core     = { path = "../crates/handy-core" }
+handy-platform = { path = "../crates/handy-platform" }
+# transcribe-rs: override workspace features. The workspace default enables
+# `onnx`, which pulls `ort-sys` (ONNX Runtime) — ort-sys has no prebuilt binaries
+# for aarch64-linux-android and refuses to download, breaking the Android build.
+# Mobile phase 2a ships Whisper-only, so we drop `onnx` here. Engines that need
+# ONNX (Parakeet/Moonshine/SenseVoice/Canary/GigaAM) are desktop-only for now.
+#
+# Additionally: whisper-rs-sys compiles whisper.cpp via cmake. For Android NDK
+# builds set `WHISPER_CMAKE_ARGS="-DGGML_OPENMP=OFF"` (NDK lacks OpenMP).
+# See docs/mobile/README.md "Android cross-compile notes".
+transcribe-rs  = { path = "../src-tauri/vendor/transcribe-rs", default-features = false, features = ["whisper"] }
+# TODO Task 9: gate `wry` behind cfg(not(mobile)) once `cargo tauri android init`
+# wires in the Android runtime. `wry` is desktop-only; needed here only so host
+# `cargo check` resolves `AppHandle<R = Wry>` defaults during the scaffold phase.
+tauri = { workspace = true, features = ["wry"] }
+tauri-plugin-clipboard-manager = "2.3.2"
+tauri-plugin-fs                = "2.4.4"
+tauri-plugin-log               = "2.7.1"
+serde      = { workspace = true }
+serde_json = { workspace = true }
+tokio      = { workspace = true }
+anyhow     = { workspace = true }
+log        = { workspace = true }
+once_cell  = { workspace = true }
+async-trait = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
+futures-util = "0.3"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni         = "0.21"
+ndk-context = "0.1"
+oboe        = { version = "0.6", features = ["java-interface"] }
