@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.handy.mobile",
   "build": {
-    "beforeDevCommand": "bun --cwd src-mobile-ui run dev",
+    "beforeDevCommand": "cd src-mobile-ui && bun run dev",
     "devUrl": "http://localhost:1421",
-    "beforeBuildCommand": "bun --cwd src-mobile-ui run build",
+    "beforeBuildCommand": "cd src-mobile-ui && bun run build",
     "frontendDist": "../src-mobile-ui/dist"
   },
   "app": {
