@@ -102,18 +102,25 @@ jobs:
       - name: Install frontend deps
         working-directory: src-mobile-ui
         run: bun install --frozen-lockfile || bun install
-      - name: Build debug APK
+      - name: Build debug APK (arm64 only)
         working-directory: src-mobile
+        # Phase 2a is arm64-only — armv7/x86/x86_64 targets are deferred (see
+        # docs/mobile/README.md "Scope: arm64-only for phase 2a"). Without
+        # --target aarch64, tauri-cli builds all 4 ABIs and the armv7 path
+        # fails because:
+        #   1. our cmake toolchain wrapper (android-arm64.toolchain.cmake)
+        #      only pins ANDROID_ABI=arm64-v8a, so armv7 has no wrapper;
+        #   2. bindgen can't locate libc headers for armv7
+        #      (bits/libc-header-start.h: file not found).
         # The cmake toolchain wrapper + GGML_OPENMP=OFF are required for
-        # transcribe-rs / whisper-rs-sys to cross-compile to aarch64-linux-android.
-        # See docs/mobile/README.md "Android cross-compile notes (Task 7 spike)"
-        # and docs/mobile/android-build.md for the full rationale.
+        # transcribe-rs / whisper-rs-sys to cross-compile whisper.cpp.
+        # See docs/mobile/README.md "Android cross-compile notes (Task 7 spike)".
         env:
           ANDROID_PLATFORM: "24"
           CMAKE_GENERATOR: Ninja
           CMAKE_TOOLCHAIN_FILE_aarch64_linux_android: ${{ github.workspace }}/scripts/android/android-arm64.toolchain.cmake
           WHISPER_CMAKE_ARGS: "-DGGML_OPENMP=OFF"
-        run: cargo tauri android build --apk --debug
+        run: cargo tauri android build --apk --debug --target aarch64
       - name: Locate APK
         id: locate
         run: |
